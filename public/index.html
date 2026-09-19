@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mi horario · Iron Lion 4977</title>
+  <meta name="description" content="Consulta a qué grupo vas en cada ronda. Iron Lion 4977 · Miembros nuevos.">
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@500;700;800;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="sparks" aria-hidden="true"></div>
+
+  <header class="top">
+    <a class="brand" href="/">
+      <img src="/logo.png" alt="" width="40" height="40">
+      <span class="brand-text"><b>IRON LION</b><small>4977 · Miembros nuevos</small></span>
+    </a>
+    <div class="live" id="live" data-state="loading">
+      <span class="dot"></span><span id="live-text">Conectando…</span>
+    </div>
+  </header>
+
+  <main id="app" class="app" aria-live="polite">
+    <!-- Vista persona -->
+    <section id="view-person" class="view" hidden>
+      <p class="eyebrow reveal">Hola,</p>
+      <h1 class="name reveal" id="p-name"></h1>
+
+      <article class="now reveal" id="now">
+        <div class="now-head">
+          <span class="now-label" id="now-label">Ronda actual</span>
+          <span class="now-timer" id="now-timer"></span>
+        </div>
+        <div class="now-body">
+          <div class="ring" id="ring" style="--p:0">
+            <svg viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="ring-track" cx="60" cy="60" r="52"></circle>
+              <circle class="ring-bar" cx="60" cy="60" r="52"></circle>
+            </svg>
+            <div class="ring-num">
+              <small id="ring-small">Grupo</small>
+              <strong id="ring-num">–</strong>
+            </div>
+          </div>
+          <div class="now-text">
+            <h2 id="now-title">Ve al grupo</h2>
+            <p id="now-sub">Esperando a que empiece la actividad.</p>
+          </div>
+        </div>
+        <div class="team" id="team" hidden>
+          <h3>En tu grupo ahora</h3>
+          <ul id="team-list" class="chips"></ul>
+        </div>
+      </article>
+
+      <h2 class="section-title reveal">Tus 9 rondas</h2>
+      <ol class="rounds reveal" id="rounds"></ol>
+      <p class="hint">Toca una ronda para ver con quién te toca.</p>
+    </section>
+
+    <!-- Vista lista / buscador -->
+    <section id="view-list" class="view" hidden>
+      <p class="eyebrow reveal">¿No traes tu QR?</p>
+      <h1 class="name reveal">Búscate aquí</h1>
+      <label class="search reveal">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="search" type="search" placeholder="Escribe tu nombre" autocomplete="off" autofocus>
+      </label>
+      <ul class="people reveal" id="people"></ul>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>Donde hay una chispa, hay <b>TEMPLE</b></span>
+    <a href="/">Iron Lion · Horno³</a>
+  </footer>
+
+  <template id="tpl-round">
+    <li class="round">
+      <button type="button" class="round-btn" aria-expanded="false">
+        <span class="round-idx"><small>Ronda</small><b></b></span>
+        <span class="round-group"><small>Grupo</small><b></b></span>
+        <span class="round-state"></span>
+        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="round-team"><ul class="chips"></ul></div>
+    </li>
+  </template>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

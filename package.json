@@ -1,0 +1,19 @@
+{
+  "name": "ironlion-miembros-nuevos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Consulta de grupos por ronda para miembros nuevos de Iron Lion 4977 (vía QR)",
+  "scripts": {
+    "build:data": "node scripts/build-data.js",
+    "build:qrs": "node scripts/generate-qrs.js",
+    "build": "npm run build:data && npm run build:qrs",
+    "dev": "node scripts/dev-server.js",
+    "dev:vercel": "npx vercel dev"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.34.3"
+  },
+  "devDependencies": {
+    "qrcode": "^1.5.4"
+  }
+}

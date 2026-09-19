@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Control · Iron Lion 4977</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@700;800;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .panel { display: grid; gap: 14px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px; }
+    .card h2 { font-family: var(--font-display); font-size: 18px; margin: 0 0 12px; letter-spacing: -.01em; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+    .field input { background: var(--black); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text); padding: 10px 12px; font: inherit; font-size: 16px; width: 120px; }
+    .field input[type="datetime-local"] { width: auto; }
+    .btn {
+      border: 1px solid var(--border); background: var(--steel-dark); color: var(--text);
+      border-radius: var(--r-sm); padding: 12px 16px; font-weight: 700; cursor: pointer;
+      transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+    }
+    .btn:active { transform: scale(.97); }
+    .btn.primary { background: var(--orange); border-color: var(--orange); color: var(--black); }
+    .btn.big { font-size: 18px; padding: 16px 22px; font-family: var(--font-display); letter-spacing: .02em; }
+    .btn.ghost { background: transparent; }
+    .status { font-family: var(--font-display); font-size: 26px; font-weight: 800; margin: 0; }
+    .status em { font-style: normal; color: var(--orange); }
+    .mono { font-variant-numeric: tabular-nums; }
+    .grid7 { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 8px; }
+    .grid7 .btn { padding: 12px 0; text-align: center; font-family: var(--font-display); font-size: 20px; }
+    .grid7 .btn[aria-pressed="true"] { background: var(--orange); border-color: var(--orange); color: var(--black); }
+    .note { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+    .warn { color: #ffb020; }
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; background: var(--orange); color: var(--black); font-weight: 700; padding: 10px 16px; border-radius: 999px; transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); pointer-events: none; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">
+      <img src="/logo.png" alt="" width="40" height="40">
+      <span class="brand-text"><b>IRON LION</b><small>Control de rondas · staff</small></span>
+    </a>
+    <div class="live" id="live" data-state="loading"><span class="dot"></span><span id="live-text">Conectando…</span></div>
+  </header>
+
+  <main class="app panel">
+    <p class="eyebrow">Panel del staff</p>
+    <p class="status" id="status">Cargando…</p>
+    <p class="note" id="persist"></p>
+
+    <section class="card">
+      <h2>Cronómetro automático</h2>
+      <div class="row">
+        <label class="field">Minutos por ronda <input id="roundMin" type="number" min="1" max="180" step="1" value="5"></label>
+        <label class="field">Descanso (min) <input id="breakMin" type="number" min="0" max="120" step="0.5" value="0"></label>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn primary big" id="startNow">▶ Iniciar Ronda 1 ahora</button>
+        <button class="btn" id="stop">■ Detener</button>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <label class="field">O programar inicio <input id="startAt" type="datetime-local"></label>
+        <button class="btn" id="schedule">Programar</button>
+      </div>
+      <p class="note">Al iniciar, todos los teléfonos verán la ronda en curso y el conteo regresivo (se actualizan solos cada 10 s).</p>
+    </section>
+
+    <section class="card">
+      <h2>Forzar ronda manualmente</h2>
+      <div class="grid7" id="manualGrid"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ghost" id="manualPrev">← Anterior</button>
+        <button class="btn primary" id="manualNext">Siguiente ronda →</button>
+      </div>
+      <p class="note">Modo manual: sin conteo; la ronda cambia solo cuando tú la cambias. Útil si el horario se retrasa.</p>
+    </section>
+
+    <section class="card">
+      <h2>PIN (opcional)</h2>
+      <div class="row">
+        <label class="field">PIN <input id="pin" type="password" autocomplete="off" placeholder="si está configurado"></label>
+      </div>
+      <p class="note">Solo se pide si en Vercel definiste la variable <code>CONTROL_PIN</code>. Se guarda en este dispositivo.</p>
+    </section>
+  </main>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    let sched = null, roundCount = 9, offset = 0;
+
+    fetch("/data.json").then(r => r.json()).then(d => { roundCount = d.roundCount; drawGrid(); });
+
+    const pinInput = $("#pin");
+    try { pinInput.value = localStorage.getItem("il_pin") || ""; } catch {}
+    pinInput.addEventListener("change", () => { try { localStorage.setItem("il_pin", pinInput.value); } catch {} });
+
+    async function load() {
+      const r = await fetch("/api/state", { cache: "no-store" });
+      sched = await r.json();
+      offset = Date.parse(sched.serverTime) - Date.now();
+      $("#roundMin").value = sched.roundMinutes;
+      $("#breakMin").value = sched.breakMinutes;
+      $("#persist").innerHTML = sched.persistent
+        ? "✔ Estado guardado en Upstash Redis: lo ven todos los dispositivos."
+        : '<span class="warn">⚠ Sin base de datos conectada: el estado puede perderse. En Vercel → Storage → Upstash Redis → Connect.</span>';
+      render();
+    }
+
+    async function post(body) {
+      const r = await fetch("/api/state", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-pin": pinInput.value || "" },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      if (!r.ok) { toast(j.error || "Error"); return; }
+      sched = j; offset = Date.parse(j.serverTime) - Date.now();
+      toast("Guardado"); render();
+    }
+
+    function compute() {
+      if (!sched) return { phase: "off" };
+      const total = roundCount;
+      if (sched.mode === "manual") return sched.manualRound ? { phase: "live", round: sched.manualRound, manual: true } : { phase: "pre" };
+      if (sched.mode !== "auto" || !sched.startAt) return { phase: "off" };
+      const roundMs = sched.roundMinutes * 60000, period = roundMs + sched.breakMinutes * 60000;
+      const el = Date.now() + offset - Date.parse(sched.startAt);
+      if (el < 0) return { phase: "pre", rem: -el };
+      const idx = Math.floor(el / period);
+      if (idx >= total) return { phase: "done" };
+      const inP = el - idx * period;
+      return inP < roundMs ? { phase: "live", round: idx + 1, rem: roundMs - inP } : { phase: "break", round: idx + 2, rem: period - inP };
+    }
+    const fmt = (ms) => { const t = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
+
+    function render() {
+      const c = compute();
+      const st = $("#status"), live = $("#live"), lt = $("#live-text");
+      const map = {
+        off: ["Detenido", "idle", "Sin actividad"],
+        pre: [`Por comenzar${c.rem ? ` · <span class="mono">${fmt(c.rem)}</span>` : ""}`, "idle", "Por comenzar"],
+        live: [`Ronda <em>${c.round}</em>${c.manual ? " (manual)" : ` · <span class="mono">${fmt(c.rem)}</span>`}`, "live", `Ronda ${c.round} en curso`],
+        break: [`Cambio → Ronda <em>${c.round}</em> · <span class="mono">${fmt(c.rem)}</span>`, "break", "Cambio de grupo"],
+        done: ["Actividad terminada", "done", "Terminado"],
+      }[c.phase];
+      st.innerHTML = map[0]; live.dataset.state = map[1]; lt.textContent = map[2];
+      document.querySelectorAll("#manualGrid .btn").forEach(b => b.setAttribute("aria-pressed", sched?.mode === "manual" && +b.dataset.r === sched.manualRound));
+    }
+
+    function drawGrid() {
+      const g = $("#manualGrid"); g.innerHTML = "";
+      for (let r = 1; r <= roundCount; r++) {
+        const b = document.createElement("button");
+        b.className = "btn"; b.textContent = r; b.dataset.r = r;
+        b.addEventListener("click", () => post({ mode: "manual", manualRound: r }));
+        g.appendChild(b);
+      }
+      render();
+    }
+
+    $("#startNow").addEventListener("click", () => post({ mode: "auto", startAt: new Date(Date.now() + offset).toISOString(), roundMinutes: +$("#roundMin").value, breakMinutes: +$("#breakMin").value }));
+    $("#stop").addEventListener("click", () => post({ mode: "off", startAt: null }));
+    $("#schedule").addEventListener("click", () => {
+      const v = $("#startAt").value; if (!v) return toast("Elige fecha y hora");
+      post({ mode: "auto", startAt: new Date(v).toISOString(), roundMinutes: +$("#roundMin").value, breakMinutes: +$("#breakMin").value });
+    });
+    $("#manualNext").addEventListener("click", () => post({ mode: "manual", manualRound: Math.min(roundCount, (sched?.mode === "manual" ? sched.manualRound : (compute().round || 0)) + 1) }));
+    $("#manualPrev").addEventListener("click", () => post({ mode: "manual", manualRound: Math.max(0, (sched?.mode === "manual" ? sched.manualRound : (compute().round || 1)) - 1) }));
+
+    let tt; function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), 1600); }
+
+    load().catch(() => { $("#status").textContent = "No se pudo conectar a /api/state"; });
+    setInterval(render, 1000);
+    setInterval(() => load().catch(() => {}), 10000);
+  </script>
+</body>
+</html>
