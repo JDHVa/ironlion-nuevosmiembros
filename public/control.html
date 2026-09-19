@@ -35,7 +35,6 @@
     .grid7 .btn { padding: 12px 0; text-align: center; font-family: var(--font-display); font-size: 20px; }
     .grid7 .btn[aria-pressed="true"] { background: var(--orange); border-color: var(--orange); color: var(--black); }
     .note { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
-    .warn { color: #ffb020; }
     .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; background: var(--orange); color: var(--black); font-weight: 700; padding: 10px 16px; border-radius: 999px; transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); pointer-events: none; }
     .toast.show { opacity: 1; transform: translate(-50%, 0); }
   </style>
@@ -52,7 +51,6 @@
   <main class="app panel">
     <p class="eyebrow">Panel del staff</p>
     <p class="status" id="status">Cargando…</p>
-    <p class="note" id="persist"></p>
 
     <section class="card">
       <h2>Ronda en curso</h2>
@@ -78,9 +76,6 @@
       const r = await fetch("/api/state", { cache: "no-store" });
       sched = await r.json();
       offset = Date.parse(sched.serverTime) - Date.now();
-      $("#persist").innerHTML = sched.persistent
-        ? "✔ Estado guardado en Upstash Redis: lo ven todos los dispositivos."
-        : '<span class="warn">⚠ Sin base de datos conectada: el estado puede perderse. En Vercel → Storage → Upstash Redis → Connect.</span>';
       render();
     }
 
