@@ -1,5 +1,5 @@
 // Genera un PNG de código QR por persona (qrs/<slug>.png) apuntando a la web,
-// más qrs/hoja.html: una hoja imprimible con todos los QRs y nombres.
+// más qrs/hoja.html: una hoja imprimible autocontenida (QRs embebidos en base64).
 const fs = require("fs");
 const path = require("path");
 const QRCode = require("qrcode");
@@ -22,7 +22,8 @@ async function main() {
     const url = `${BASE_URL}/?p=${p.slug}`;
     const file = path.join(OUT, `${p.slug}.png`);
     await QRCode.toFile(file, url, QR_OPTS);
-    rows.push({ ...p, url, file: path.basename(file) });
+    const dataUri = await QRCode.toDataURL(url, { ...QR_OPTS, width: 400 });
+    rows.push({ ...p, url, dataUri });
     console.log(`✔ ${p.name.padEnd(40)} ${url}`);
   }
 
@@ -30,7 +31,7 @@ async function main() {
     .map(
       (r) => `
       <figure class="card">
-        <img src="${r.file}" alt="QR de ${r.name}" width="220" height="220">
+        <img src="${r.dataUri}" alt="QR de ${r.name}" width="220" height="220">
         <figcaption>
           <strong>${r.name}</strong>
           <small>${r.url.replace(/^https?:\/\//, "")}</small>
