@@ -1,7 +1,6 @@
 // Estado compartido del cronómetro de rondas.
 // GET  /api/state  → estado actual
 // POST /api/state  → guarda el estado (body JSON). Sin login: la ruta /control es "oculta".
-//                    Si defines CONTROL_PIN en Vercel, el POST exige header x-pin.
 //
 // Persistencia: Upstash Redis (Vercel → Storage → Upstash → Connect).
 // Sin Redis configurado, el estado vive solo en memoria de la función
@@ -11,11 +10,8 @@ const { Redis } = require("@upstash/redis");
 
 const KEY = "ironlion:rondas:state";
 const DEFAULT_STATE = {
-  mode: "off",          // off | auto | manual
-  startAt: null,        // ISO: inicio de la Ronda 1 (modo auto)
-  roundMinutes: 5,      // duración de cada ronda
-  breakMinutes: 0,      // descanso entre rondas
-  manualRound: 1,       // ronda forzada (modo manual)
+  mode: "manual",       // el staff fuerza la ronda a mano
+  manualRound: 0,       // 0 = aún no empieza; 1..N = ronda en curso
   updatedAt: null,
 };
 
@@ -40,11 +36,7 @@ async function save(redis, state) {
 }
 
 function sanitize(body, prev) {
-  const s = { ...prev };
-  if (["off", "auto", "manual"].includes(body.mode)) s.mode = body.mode;
-  if (body.startAt === null || (typeof body.startAt === "string" && !isNaN(Date.parse(body.startAt)))) s.startAt = body.startAt;
-  if (Number.isFinite(+body.roundMinutes) && +body.roundMinutes > 0) s.roundMinutes = Math.min(180, +body.roundMinutes);
-  if (Number.isFinite(+body.breakMinutes) && +body.breakMinutes >= 0) s.breakMinutes = Math.min(120, +body.breakMinutes);
+  const s = { ...prev, mode: "manual" };
   if (Number.isInteger(+body.manualRound) && +body.manualRound >= 0) s.manualRound = Math.min(50, +body.manualRound);
   s.updatedAt = new Date().toISOString();
   return s;
@@ -53,7 +45,7 @@ function sanitize(body, prev) {
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "content-type, x-pin");
+  res.setHeader("Access-Control-Allow-Headers", "content-type");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   if (req.method === "OPTIONS") return res.status(204).end();
 
@@ -64,8 +56,6 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ...state, persistent: !!redis, serverTime: new Date().toISOString() });
     }
     if (req.method === "POST") {
-      const pin = process.env.CONTROL_PIN;
-      if (pin && req.headers["x-pin"] !== pin) return res.status(401).json({ error: "PIN incorrecto" });
       const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
       const state = sanitize(body, await load(redis));
       await save(redis, state);

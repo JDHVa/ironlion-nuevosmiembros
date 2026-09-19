@@ -158,7 +158,7 @@
       $("#ring-small").textContent = "Grupo";
       num.textContent = me.rounds[0];
       $("#now-title").innerHTML = `Empiezas en el <em>grupo ${me.rounds[0]}</em>`;
-      $("#now-sub").textContent = "Cuando arranque la actividad, aquí verás la ronda en curso y el tiempo restante.";
+      $("#now-sub").textContent = "Cuando arranque la actividad, aquí verás la ronda en curso y a qué grupo ir.";
       showTeam(1, me.rounds[0]);
     } else if (c.phase === "pre") {
       setLive("idle", "Por comenzar");
@@ -167,7 +167,7 @@
       $("#ring-small").textContent = "Grupo";
       num.textContent = me.rounds[0];
       $("#now-title").innerHTML = `Prepárate: <em>grupo ${me.rounds[0]}</em>`;
-      $("#now-sub").textContent = c.remainingMs != null ? "La Ronda 1 arranca en breve." : "Esperando la señal del staff.";
+      $("#now-sub").textContent = c.remainingMs != null ? "La Ronda 1 arranca en breve." : "El staff marcará el inicio de la Ronda 1.";
       showTeam(1, me.rounds[0]);
     } else if (c.phase === "live") {
       setLive("live", `Ronda ${c.round} en curso`);

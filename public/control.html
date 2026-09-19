@@ -55,39 +55,16 @@
     <p class="note" id="persist"></p>
 
     <section class="card">
-      <h2>Cronómetro automático</h2>
-      <div class="row">
-        <label class="field">Minutos por ronda <input id="roundMin" type="number" min="1" max="180" step="1" value="5"></label>
-        <label class="field">Descanso (min) <input id="breakMin" type="number" min="0" max="120" step="0.5" value="0"></label>
-      </div>
-      <div class="row" style="margin-top:14px">
-        <button class="btn primary big" id="startNow">▶ Iniciar Ronda 1 ahora</button>
-        <button class="btn" id="stop">■ Detener</button>
-      </div>
-      <div class="row" style="margin-top:14px">
-        <label class="field">O programar inicio <input id="startAt" type="datetime-local"></label>
-        <button class="btn" id="schedule">Programar</button>
-      </div>
-      <p class="note">Al iniciar, todos los teléfonos verán la ronda en curso y el conteo regresivo (se actualizan solos cada 10 s).</p>
-    </section>
-
-    <section class="card">
-      <h2>Forzar ronda manualmente</h2>
+      <h2>Ronda en curso</h2>
       <div class="grid7" id="manualGrid"></div>
       <div class="row" style="margin-top:12px">
         <button class="btn ghost" id="manualPrev">← Anterior</button>
-        <button class="btn primary" id="manualNext">Siguiente ronda →</button>
+        <button class="btn primary big" id="manualNext">Siguiente ronda →</button>
+        <button class="btn ghost" id="reset">Reiniciar (aún no empieza)</button>
       </div>
-      <p class="note">Modo manual: sin conteo; la ronda cambia solo cuando tú la cambias. Útil si el horario se retrasa.</p>
+      <p class="note">La ronda cambia solo cuando tú la cambias. Todos los teléfonos se actualizan solos en menos de 10 s.</p>
     </section>
 
-    <section class="card">
-      <h2>PIN (opcional)</h2>
-      <div class="row">
-        <label class="field">PIN <input id="pin" type="password" autocomplete="off" placeholder="si está configurado"></label>
-      </div>
-      <p class="note">Solo se pide si en Vercel definiste la variable <code>CONTROL_PIN</code>. Se guarda en este dispositivo.</p>
-    </section>
   </main>
   <div class="toast" id="toast"></div>
 
@@ -97,16 +74,10 @@
 
     fetch("/data.json").then(r => r.json()).then(d => { roundCount = d.roundCount; drawGrid(); });
 
-    const pinInput = $("#pin");
-    try { pinInput.value = localStorage.getItem("il_pin") || ""; } catch {}
-    pinInput.addEventListener("change", () => { try { localStorage.setItem("il_pin", pinInput.value); } catch {} });
-
     async function load() {
       const r = await fetch("/api/state", { cache: "no-store" });
       sched = await r.json();
       offset = Date.parse(sched.serverTime) - Date.now();
-      $("#roundMin").value = sched.roundMinutes;
-      $("#breakMin").value = sched.breakMinutes;
       $("#persist").innerHTML = sched.persistent
         ? "✔ Estado guardado en Upstash Redis: lo ven todos los dispositivos."
         : '<span class="warn">⚠ Sin base de datos conectada: el estado puede perderse. En Vercel → Storage → Upstash Redis → Connect.</span>';
@@ -116,7 +87,7 @@
     async function post(body) {
       const r = await fetch("/api/state", {
         method: "POST",
-        headers: { "content-type": "application/json", "x-pin": pinInput.value || "" },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
       const j = await r.json();
@@ -127,31 +98,19 @@
 
     function compute() {
       if (!sched) return { phase: "off" };
-      const total = roundCount;
-      if (sched.mode === "manual") return sched.manualRound ? { phase: "live", round: sched.manualRound, manual: true } : { phase: "pre" };
-      if (sched.mode !== "auto" || !sched.startAt) return { phase: "off" };
-      const roundMs = sched.roundMinutes * 60000, period = roundMs + sched.breakMinutes * 60000;
-      const el = Date.now() + offset - Date.parse(sched.startAt);
-      if (el < 0) return { phase: "pre", rem: -el };
-      const idx = Math.floor(el / period);
-      if (idx >= total) return { phase: "done" };
-      const inP = el - idx * period;
-      return inP < roundMs ? { phase: "live", round: idx + 1, rem: roundMs - inP } : { phase: "break", round: idx + 2, rem: period - inP };
+      return sched.manualRound ? { phase: "live", round: Math.min(roundCount, sched.manualRound) } : { phase: "pre" };
     }
-    const fmt = (ms) => { const t = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
 
     function render() {
       const c = compute();
       const st = $("#status"), live = $("#live"), lt = $("#live-text");
       const map = {
-        off: ["Detenido", "idle", "Sin actividad"],
-        pre: [`Por comenzar${c.rem ? ` · <span class="mono">${fmt(c.rem)}</span>` : ""}`, "idle", "Por comenzar"],
-        live: [`Ronda <em>${c.round}</em>${c.manual ? " (manual)" : ` · <span class="mono">${fmt(c.rem)}</span>`}`, "live", `Ronda ${c.round} en curso`],
-        break: [`Cambio → Ronda <em>${c.round}</em> · <span class="mono">${fmt(c.rem)}</span>`, "break", "Cambio de grupo"],
-        done: ["Actividad terminada", "done", "Terminado"],
+        off: ["Conectando…", "loading", "Conectando…"],
+        pre: ["Aún no empieza", "idle", "Por comenzar"],
+        live: [`Ronda <em>${c.round}</em> de ${roundCount}`, "live", `Ronda ${c.round} en curso`],
       }[c.phase];
       st.innerHTML = map[0]; live.dataset.state = map[1]; lt.textContent = map[2];
-      document.querySelectorAll("#manualGrid .btn").forEach(b => b.setAttribute("aria-pressed", sched?.mode === "manual" && +b.dataset.r === sched.manualRound));
+      document.querySelectorAll("#manualGrid .btn").forEach(b => b.setAttribute("aria-pressed", !!sched && +b.dataset.r === sched.manualRound));
     }
 
     function drawGrid() {
@@ -159,20 +118,15 @@
       for (let r = 1; r <= roundCount; r++) {
         const b = document.createElement("button");
         b.className = "btn"; b.textContent = r; b.dataset.r = r;
-        b.addEventListener("click", () => post({ mode: "manual", manualRound: r }));
+        b.addEventListener("click", () => post({ manualRound: r }));
         g.appendChild(b);
       }
       render();
     }
 
-    $("#startNow").addEventListener("click", () => post({ mode: "auto", startAt: new Date(Date.now() + offset).toISOString(), roundMinutes: +$("#roundMin").value, breakMinutes: +$("#breakMin").value }));
-    $("#stop").addEventListener("click", () => post({ mode: "off", startAt: null }));
-    $("#schedule").addEventListener("click", () => {
-      const v = $("#startAt").value; if (!v) return toast("Elige fecha y hora");
-      post({ mode: "auto", startAt: new Date(v).toISOString(), roundMinutes: +$("#roundMin").value, breakMinutes: +$("#breakMin").value });
-    });
-    $("#manualNext").addEventListener("click", () => post({ mode: "manual", manualRound: Math.min(roundCount, (sched?.mode === "manual" ? sched.manualRound : (compute().round || 0)) + 1) }));
-    $("#manualPrev").addEventListener("click", () => post({ mode: "manual", manualRound: Math.max(0, (sched?.mode === "manual" ? sched.manualRound : (compute().round || 1)) - 1) }));
+    $("#manualNext").addEventListener("click", () => post({ manualRound: Math.min(roundCount, (sched?.manualRound || 0) + 1) }));
+    $("#manualPrev").addEventListener("click", () => post({ manualRound: Math.max(0, (sched?.manualRound || 0) - 1) }));
+    $("#reset").addEventListener("click", () => post({ manualRound: 0 }));
 
     let tt; function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), 1600); }
 
