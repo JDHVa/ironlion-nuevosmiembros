@@ -9,6 +9,7 @@ la ronda en curso (la marca el staff desde `/control`) y quiénes están en su g
 - `scripts/generate-qrs.js` — un PNG por persona en `qrs/` + `qrs/hoja.html` (imprimible).
 - `public/` — sitio estático (`/?p=<slug>` vista personal, `/` buscador, `/control` panel del staff).
 - `api/state.js` — ronda en curso compartida (Vercel Function + Upstash Redis).
+- `api/people.js` — lista de personas editable desde `/control` (altas, bajas, nombre, grupos). Base: `data.json`; los cambios se guardan en Redis encima. "Restaurar CSV" los borra.
 
 ## Comandos
 ```bash
@@ -30,5 +31,6 @@ Si cambia el dominio: `BASE_URL=https://otro.dominio npm run build:qrs`.
 ## El día del evento
 1. Abre `https://ironlion-miembros-nuevos.vercel.app/control` en tu teléfono.
 2. Cuando empiece cada ronda, pulsa **Siguiente ronda →** (o toca el número de ronda). Todos los teléfonos se actualizan solos.
-3. Imprime `qrs/hoja.html` (Ctrl+P) o reparte los PNG de `qrs/`.
+3. En **Personas** puedes agregar a alguien (grupos al azar), quitarlo, corregir su nombre o cambiar sus grupos. Renombrar no cambia su QR. Quien se agrega ahí no tiene QR impreso: que se busque por nombre en la página principal o ábrele "Ver su página".
+4. Imprime `qrs/hoja.html` (Ctrl+P) o reparte los PNG de `qrs/`.
 # ironlion-nuevosmiembros

@@ -37,6 +37,24 @@
     .note { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
     .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; background: var(--orange); color: var(--black); font-weight: 700; padding: 10px 16px; border-radius: 999px; transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); pointer-events: none; }
     .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    /* personas */
+    .people-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .people-tools input { flex: 1; min-width: 160px; background: var(--black); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text); padding: 10px 12px; font: inherit; font-size: 16px; }
+    .plist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 60vh; overflow: auto; }
+    .prow { border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--black); }
+    .prow-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
+    .prow-head b { flex: 1; font-weight: 600; }
+    .prow-head small { color: var(--muted); font-size: 11px; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+    .prow-body { display: none; padding: 0 12px 12px; border-top: 1px dashed var(--border); }
+    .prow.open .prow-body { display: block; }
+    .prow-body label.field { margin-top: 10px; }
+    .prow-body .field input { width: 100%; }
+    .rgrid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; margin-top: 10px; }
+    .rgrid label { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: var(--muted); font-weight: 600; }
+    .rgrid input { width: 100%; text-align: center; background: var(--steel-dark); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px 0; font: inherit; font-size: 16px; font-family: var(--font-display); font-weight: 700; }
+    .prow-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .btn.danger { border-color: #7a2a12; color: #ff8a5c; background: transparent; }
+    .btn.sm { padding: 8px 12px; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -63,6 +81,20 @@
       <p class="note">La ronda cambia solo cuando tú la cambias. Todos los teléfonos se actualizan solos en menos de 10 s.</p>
     </section>
 
+    <section class="card">
+      <h2>Personas <small id="pcount" style="color:var(--muted);font-weight:500"></small></h2>
+      <div class="people-tools">
+        <input id="newName" type="text" placeholder="Nombre completo de la persona nueva" autocomplete="off">
+        <button class="btn primary" id="addPerson">+ Agregar</button>
+      </div>
+      <div class="people-tools">
+        <input id="pfilter" type="search" placeholder="Buscar…" autocomplete="off">
+        <button class="btn ghost sm" id="resetPeople" title="Vuelve a la lista original del CSV">Restaurar CSV</button>
+      </div>
+      <ul class="plist" id="plist"></ul>
+      <p class="note">Al agregar a alguien se le asigna un grupo al azar en cada ronda. Cambiar el nombre no cambia su enlace/QR. Los cambios los ven todos al instante.</p>
+    </section>
+
   </main>
   <div class="toast" id="toast"></div>
 
@@ -71,6 +103,89 @@
     let sched = null, roundCount = 9, offset = 0;
 
     fetch("/data.json").then(r => r.json()).then(d => { roundCount = d.roundCount; drawGrid(); });
+
+    // ---------- personas ----------
+    let peopleData = null;
+    const openRows = new Set();
+
+    async function loadPeople() {
+      const r = await fetch("/api/people", { cache: "no-store" });
+      peopleData = await r.json();
+      roundCount = peopleData.roundCount;
+      drawPeople();
+    }
+
+    async function postPeople(body) {
+      const r = await fetch("/api/people", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      const j = await r.json();
+      if (!r.ok) { toast(j.error || "Error"); return false; }
+      peopleData = j; drawPeople(); toast("Guardado"); return true;
+    }
+
+    const escH = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const normS = (t) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    function drawPeople() {
+      if (!peopleData) return;
+      const q = normS($("#pfilter").value || "");
+      const rows = peopleData.people.filter((p) => !q || normS(p.name).includes(q));
+      const gmin = Math.min(...peopleData.groups), gmax = Math.max(...peopleData.groups);
+      $("#pcount").textContent = `· ${peopleData.people.length}`;
+      $("#plist").innerHTML = rows.map((p) => `
+        <li class="prow${openRows.has(p.slug) ? " open" : ""}" data-slug="${p.slug}">
+          <div class="prow-head" data-toggle>
+            <b>${escH(p.name)}</b>
+            <small>${p.rounds.join(" ")}</small>
+          </div>
+          <div class="prow-body">
+            <label class="field">Nombre <input data-name type="text" value="${escH(p.name)}"></label>
+            <div class="rgrid">
+              ${p.rounds.map((g, i) => `<label>R${i + 1}<input data-round type="number" min="${gmin}" max="${gmax}" value="${g}"></label>`).join("")}
+            </div>
+            <div class="prow-actions">
+              <button class="btn primary sm" data-save>Guardar</button>
+              <button class="btn sm" data-random>Grupos al azar</button>
+              <button class="btn danger sm" data-remove>Quitar</button>
+              <a class="btn ghost sm" href="/?p=${p.slug}" target="_blank" rel="noopener">Ver su página ↗</a>
+            </div>
+          </div>
+        </li>`).join("") || `<li class="note">Sin resultados.</li>`;
+    }
+
+    $("#plist").addEventListener("click", async (e) => {
+      const li = e.target.closest(".prow"); if (!li) return;
+      const slug = li.dataset.slug;
+      if (e.target.closest("[data-toggle]")) { li.classList.toggle("open"); li.classList.contains("open") ? openRows.add(slug) : openRows.delete(slug); return; }
+      if (e.target.closest("[data-random]")) {
+        li.querySelectorAll("[data-round]").forEach((inp) => inp.value = peopleData.groups[Math.floor(Math.random() * peopleData.groups.length)]);
+        return;
+      }
+      if (e.target.closest("[data-save]")) {
+        const name = li.querySelector("[data-name]").value;
+        const rounds = [...li.querySelectorAll("[data-round]")].map((i) => +i.value);
+        await postPeople({ action: "update", slug, name, rounds });
+        return;
+      }
+      if (e.target.closest("[data-remove]")) {
+        const p = peopleData.people.find((x) => x.slug === slug);
+        if (!confirm(`¿Quitar a ${p.name} de la lista?`)) return;
+        openRows.delete(slug);
+        await postPeople({ action: "remove", slug });
+      }
+    });
+    $("#addPerson").addEventListener("click", async () => {
+      const name = $("#newName").value.trim(); if (!name) return toast("Escribe el nombre");
+      if (await postPeople({ action: "add", name })) { $("#newName").value = ""; $("#pfilter").value = ""; drawPeople(); }
+    });
+    $("#newName").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#addPerson").click(); });
+    $("#pfilter").addEventListener("input", drawPeople);
+    $("#resetPeople").addEventListener("click", async () => {
+      if (!confirm("Esto borra todos los cambios (altas, bajas y ediciones) y vuelve al CSV original. ¿Continuar?")) return;
+      openRows.clear(); await postPeople({ action: "reset" });
+    });
+
+    loadPeople().catch(() => toast("No se pudo cargar la lista"));
+    setInterval(() => loadPeople().catch(() => {}), 30000);
 
     async function load() {
       const r = await fetch("/api/state", { cache: "no-store" });

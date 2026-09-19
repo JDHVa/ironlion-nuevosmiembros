@@ -31,8 +31,15 @@
 
   // ---------- datos ----------
   async function loadData() {
-    const r = await fetch("/data.json", { cache: "no-cache" });
-    state.data = await r.json();
+    // Lista viva (editable desde /control); si la API no responde, el CSV original.
+    try {
+      const r = await fetch("/api/people", { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      state.data = await r.json();
+    } catch {
+      const r = await fetch("/data.json", { cache: "no-cache" });
+      state.data = await r.json();
+    }
   }
 
   async function loadSched() {
